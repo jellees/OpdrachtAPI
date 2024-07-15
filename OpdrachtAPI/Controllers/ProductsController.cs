@@ -1,68 +1,69 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpdrachtAPI.Models;
 
-namespace OpdrachtAPI.Controllers
+namespace OpdrachtAPI.Controllers;
+
+[Authorize]
+[Route("api/[controller]")]
+[ApiController]
+public class ProductsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ProductsController : ControllerBase
+    private readonly IServiceWrapper _service;
+    private readonly IOpdrachtAPIMetrics _metrics;
+
+    public ProductsController(IServiceWrapper service, IOpdrachtAPIMetrics metrics)
     {
-        private readonly IServiceWrapper _service;
-        private readonly IOpdrachtAPIMetrics _metrics;
+        _service = service;
+        _metrics = metrics;
+    }
 
-        public ProductsController(IServiceWrapper service, IOpdrachtAPIMetrics metrics)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+    {
+        return Ok(await _service.Products.GetAllAsync());
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Product>> GetProduct(Guid id)
+    {
+        var product = await _service.Products.GetAsync(id);
+
+        if (product == null)
         {
-            _service = service;
-            _metrics = metrics;
+            return NotFound();
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        return product;
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutProduct(Guid id, Product product)
+    {
+        if (id != product.Id)
         {
-            return Ok(await _service.Products.GetAllAsync());
+            return BadRequest();
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(Guid id)
-        {
-            var product = await _service.Products.GetAsync(id);
+        await _service.Products.UpdateAsync(product);
 
-            if (product == null)
-            {
-                return NotFound();
-            }
+        return NoContent();
+    }
 
-            return product;
-        }
+    [HttpPost]
+    public async Task<ActionResult<Product>> PostProduct(Product product)
+    {
+        await _service.Products.AddAsync(product);
+        _metrics.ProductAdded(1);
+        return CreatedAtAction("GetProduct", new { id = product.Id }, product);
+    }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduct(Guid id, Product product)
-        {
-            if (id != product.Id)
-            {
-                return BadRequest();
-            }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteProduct(Guid id)
+    {
+        await _service.Products.DeleteAsync(id);
 
-            await _service.Products.UpdateAsync(product);
-
-            return NoContent();
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<Product>> PostProduct(Product product)
-        {
-            await _service.Products.AddAsync(product);
-            _metrics.ProductAdded(1);
-            return CreatedAtAction("GetProduct", new { id = product.Id }, product);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProduct(Guid id)
-        {
-            await _service.Products.DeleteAsync(id);
-
-            return NoContent();
-        }
+        return NoContent();
     }
 }
