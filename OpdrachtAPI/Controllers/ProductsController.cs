@@ -9,10 +9,12 @@ namespace OpdrachtAPI.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IServiceWrapper _service;
+        private readonly IOpdrachtAPIMetrics _metrics;
 
-        public ProductsController(IServiceWrapper service)
+        public ProductsController(IServiceWrapper service, IOpdrachtAPIMetrics metrics)
         {
             _service = service;
+            _metrics = metrics;
         }
 
         [HttpGet]
@@ -51,6 +53,7 @@ namespace OpdrachtAPI.Controllers
         public async Task<ActionResult<Product>> PostProduct(Product product)
         {
             await _service.Products.AddAsync(product);
+            _metrics.ProductAdded(1);
             return CreatedAtAction("GetProduct", new { id = product.Id }, product);
         }
 
